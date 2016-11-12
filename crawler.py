@@ -8,6 +8,7 @@ import re
 import os
 import pickle
 from optparse import OptionParser
+import pagerank
 
 CRAWLER_RESULT = 'crawler-result.pickle'
 
@@ -125,6 +126,9 @@ def main():
     nodes = {}
     crawl(starting_url, nodes, level=level)
     save_nodes(nodes, output_file)
+
+    if level <= 2:
+        pagerank.plot_rank(output_file, damping_factor=0.85, display=30)
 
 
 if __name__ == '__main__':
