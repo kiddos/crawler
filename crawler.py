@@ -7,10 +7,11 @@ import urllib2
 import re
 import os
 import pickle
+import io
 from optparse import OptionParser
 import pagerank
 
-CRAWLER_RESULT = 'crawler-result.pickle'
+RESULT = 'crawler_result'
 
 
 def read_url(url):
@@ -86,7 +87,6 @@ def write_nodes(nodes, pickle_file):
     print('saving nodes to ' + pickle_file)
     with open(pickle_file, 'wb') as f:
         pickle.dump(nodes, f)
-        f.close()
 
 
 def save_nodes(nodes, pickle_file):
@@ -109,10 +109,45 @@ def crawl(url, nodes, level=1):
             crawl(link, nodes, level-1)
 
 
+def crawl_content(url):
+    print('crawling content of %s ...' % url)
+    content = read_url(url)
+    pattern = re.compile(r'<p[^>]*>([^<]+)</p>')
+    text = pattern.findall(content)
+    if text:
+        new_text = []
+        for t in text:
+            if re.search(r'<span[^>]*>', t):
+                inner_tag = re.findall(r'<span[^>]*>([^<]*)</span>', t)
+                print(inner_tag)
+                new_text.append((u''.join(inner_tag)).strip())
+            else:
+                new_text.append(t.strip())
+        return new_text
+    return []
+
+
+def save_content(nodes, output_path):
+    reload(sys)
+    sys.setdefaultencoding('utf-8')
+    text = []
+    for node in nodes:
+        text += crawl_content(node)
+    print('saving content to %s ...' % output_path)
+    with open(output_path, mode='wb') as text_file:
+        for t in text:
+            if t.startswith('&'):
+                continue
+            try:
+                text_file.write(t + u'\n')
+            except:
+                continue
+
+
 def main():
     parser = OptionParser()
     parser.add_option('-o', '--output', dest='output',
-        default=CRAWLER_RESULT, help='pickle file to store urls')
+        default=RESULT, help='pickle file to store urls')
     parser.add_option('-l', '--level', dest='level', default=1,
         help='crawling recursive level', type='int')
     parser.add_option('-u', '--url', dest='url',
@@ -123,9 +158,19 @@ def main():
     starting_url = option_dict['url']
     level = int(option_dict['level'])
     output_file = option_dict['output']
+    if not output_file.endswith('.pickle'):
+        output_file += '.pickle'
+
+    # crawl the urls
     nodes = {}
     crawl(starting_url, nodes, level=level)
     save_nodes(nodes, output_file)
+
+    # crawl paragraph text
+    text_output = option_dict['output']
+    if not text_output.endswith('.txt'):
+        text_output += '.txt'
+    save_content(nodes, text_output)
 
     if level <= 2:
         pagerank.plot_rank(output_file, damping_factor=0.85, display=30)
