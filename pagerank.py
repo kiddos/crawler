@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import os
 import pickle
 from optparse import OptionParser
+from datetime import datetime
 import crawler
 
 
@@ -29,8 +30,9 @@ def compute_prob(nodes):
         for i in range(url_count):
             if M[i][j] == 1:
                 count += 1
-        for i in range(url_count):
-            M[i][j] /= count
+        if count > 0:
+            for i in range(url_count):
+                M[i][j] /= count
     return url_list, R, M
 
 
@@ -53,12 +55,48 @@ def page_rank_iterative(R, M, d):
     return R
 
 
-def plot_rank(filepath, damping_factor, display):
+def page_rank(R, M, d):
+    N = M.shape[0]
+    I = np.eye(N)
+    ones = np.ones([N, 1])
+    R = np.matmul(np.linalg.inv(I - d * M) * (1 - d) / N, ones)
+    return R
+
+
+def page_rank_power(R, M, d):
+    N = M.shape[0]
+    A = d * M + (1 - d) / N
+    eps = 1e-3
+    max_iteration = 100
+    for it in range(max_iteration):
+        new_R = np.matmul(A, R)
+        new_R /= np.linalg.norm(new_R)
+        if np.sum(np.abs(new_R - R)) < eps:
+            break
+        R = new_R
+    return R
+
+
+def plot_rank(filepath, damping_factor, display, computation='iterative'):
     nodes = load_nodes(filepath)
+    node_count = len(nodes)
     url_list, R, M = compute_prob(nodes)
-    rank = page_rank_iterative(R, M, damping_factor)
-    sort_index = np.argsort(rank, axis=0, kind='quicksort')[::-1]
     relation = M > 0
+
+    start = datetime.now()
+    if computation == 'iterative':
+        rank = page_rank_iterative(R, M, damping_factor)
+    elif computation == 'algebraic':
+        rank = page_rank(R, M, damping_factor)
+    elif computation == 'power':
+        rank = page_rank_power(R, M, damping_factor)
+    else:
+        rank = page_rank_iterative(R, M, damping_factor)
+    end = datetime.now()
+    print('url count: ' + str(node_count))
+    print('time elapsed: %d ms' % (end.microsecond - start.microsecond))
+
+    sort_index = np.argsort(rank, axis=0, kind='quicksort')[::-1]
 
     print('%4s %8s %4s %4s %s' % ('rank', 'score', 'in', 'out', 'url'))
     for i, index in enumerate(sort_index[:display]):
@@ -70,7 +108,6 @@ def plot_rank(filepath, damping_factor, display):
     relation_plot = relation_figure.add_subplot(111)
     relation_plot.matshow(relation)
 
-    node_count = len(nodes)
     rank_figure = plt.figure()
     rank_plot = rank_figure.add_subplot(111)
     rank_plot.bar(range(node_count), [r for r in rank], width=0.8)
@@ -93,7 +130,8 @@ def main():
     url_filepath = option_dict['file']
     damping_factor = float(option_dict['damping_factor'])
     display = int(option_dict['display'])
-    plot_rank(url_filepath, damping_factor, display)
+    computation = option_dict['computation']
+    plot_rank(url_filepath, damping_factor, display, computation)
 
 
 if __name__ == '__main__':
