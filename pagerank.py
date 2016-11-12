@@ -16,7 +16,6 @@ def compute_prob(nodes):
     url_list = [url for url in nodes]
     R = np.ones([url_count, 1], dtype=np.float32)
     M = np.zeros([url_count, url_count], dtype=np.float32)
-
     R = R / url_count
 
     for i in range(url_count):
@@ -117,7 +116,7 @@ def plot_rank(filepath, damping_factor, display, computation='iterative'):
 def main():
     parser = OptionParser()
     parser.add_option('-f', '--file', dest='file',
-        default=crawler.CRAWLER_RESULT, help='pickle file containing the urls')
+        default=crawler.RESULT, help='pickle file containing the urls')
     parser.add_option('-n', '--display', dest='display',
         default=30, help='number of entries to display', type='int')
     parser.add_option('-d', '--damping-factor', dest='damping_factor',
@@ -128,6 +127,8 @@ def main():
 
     option_dict = options.__dict__
     url_filepath = option_dict['file']
+    if not url_filepath.endswith('.pickle'):
+        url_filepath += '.pickle'
     damping_factor = float(option_dict['damping_factor'])
     display = int(option_dict['display'])
     computation = option_dict['computation']
