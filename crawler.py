@@ -144,6 +144,15 @@ def save_content(nodes, output_path):
                 continue
 
 
+def crawl_title(url):
+    content = read_url(url)
+    pattern = re.compile(r'<title[^>]*>([^<]+)</title>')
+    text = pattern.findall(content)
+    if text:
+        return text[0]
+    return ''
+
+
 def main():
     parser = OptionParser()
     parser.add_option('-o', '--output', dest='output',
@@ -151,8 +160,7 @@ def main():
     parser.add_option('-l', '--level', dest='level', default=1,
         help='crawling recursive level', type='int')
     parser.add_option('-u', '--url', dest='url',
-        default='http://www.nuk.edu.tw', help='url to start crawling',
-        action='store_false')
+        default='http://www.nuk.edu.tw', help='url to start crawling')
     (options, args) = parser.parse_args()
     option_dict = options.__dict__
     starting_url = option_dict['url']
@@ -171,6 +179,12 @@ def main():
     if not text_output.endswith('.txt'):
         text_output += '.txt'
     save_content(nodes, text_output)
+
+    # crawl the title
+    for node in nodes:
+        title = crawl_title(node)
+        if title:
+            print('%s: %s' % (title, node))
 
     if level <= 2:
         pagerank.plot_rank(output_file, damping_factor=0.85, display=30)
